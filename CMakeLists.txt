@@ -3,9 +3,9 @@
 #
 cmake_minimum_required(VERSION 3.17)
 
-project("TODO_RENAME_ME" C CXX)
+project("SCHREIBER" C CXX)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_EXTENSIONS Off)
 set(CMAKE_CXX_STANDARD_REQUIRED On)
 set(CMAKE_EXPORT_COMPILE_COMMANDS On)
@@ -22,13 +22,14 @@ include(CTest)
 
 option(${PROJECT_NAME}_ENABLE_CLANG_TIDY "Builds with clang-tidy, if available. Defaults to On." On)
 set(${PROJECT_NAME}_CLANG_TIDY_PATH "/usr/bin/clang-tidy" CACHE FILEPATH "Path to clang-tidy. Defaults to /usr/bin/clang-tidy")
+
+include(add_targets)
+include(packages)
 if(${PROJECT_NAME}_ENABLE_CLANG_TIDY)
 	find_package(ClangTidy REQUIRED)
 endif()
 
-include(add_targets)
-include(packages)
-
 include_directories(include)
+include_directories(SYSTEM "${CLANG_INCLUDE_DIRS}")
 add_subdirectory(source)
 add_subdirectory(test)

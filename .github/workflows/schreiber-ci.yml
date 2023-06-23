@@ -1,0 +1,104 @@
+name: project_template CI
+
+on: [push, pull_request]
+
+env:
+  PATH: "/tmp/llvm/bin:/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/lib/jvm/default/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl"
+  LD_LIBRARY_PATH: "/tmp/llvm/lib:/tmp/llvm/lib/x86_64-unknown-linux-gnu:/usr/lib:/usr/lib/x86_64-unknown-linux-gnu"
+
+jobs:
+  build:
+    name: ${{ matrix.os }}-${{ matrix.build_type }}-${{ matrix.profile.toolchain }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        build_type: [Debug, Release]
+        profile:
+          - toolchain: clang_libstdcxx
+            LLVM_root: /usr
+          - toolchain: clang_libcxx
+            LLVM_root: /tmp/llvm
+        llvm_version: [17]
+    steps:
+      - name: Install tools
+        id: install_tools
+        working-directory: /tmp
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sudo wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
+          sudo apt-add-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy main'
+          sudo apt-get update
+          sudo apt-get remove -y .*clang.* .*llvm.*
+          sudo apt-get autoremove -y
+          sudo apt-get install -y cmake ninja-build
+          if [[ ${{ matrix.profile.toolchain }} == clang_libcxx ]]; then
+            OTHER_REPO="cjdb/lah-toolchain"
+            WF_NAME="toolchain-release"
+            ARTIFACT_NAME="llvm-x86_64-unknown-linux-gnu.tar.xz"
+            for RUN_ID in `gh run --repo ${OTHER_REPO} list --workflow ${WF_NAME} --json databaseId --jq .[].databaseId`; do
+              gh run --repo ${OTHER_REPO} download ${RUN_ID} -n ${ARTIFACT_NAME} || continue
+              break
+            done
+            tar -xvf ${ARTIFACT_NAME}
+          else
+            sudo apt-get install -y                          \
+              clang                                          \
+              clang-format                                   \
+              clang-tidy                                     \
+              clang-tools                                    \
+              libc++-${{ matrix.llvm_version }}-dev          \
+              libc++abi-${{ matrix.llvm_version }}-dev       \
+              libclang-${{ matrix.llvm_version }}-dev        \
+              libclang-common-${{ matrix.llvm_version }}-dev \
+              libfuzzer-${{ matrix.llvm_version }}-dev       \
+              libunwind-${{ matrix.llvm_version }}-dev       \
+              lld                                            \
+              llvm-dev                                       \
+              python3-clang
+          fi
+          clang --version
+
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Formatting
+        id: git_clang_format
+        run: git-clang-format
+          --style=file
+          --extensions c,cc,cpp,cxx,h,hh,hpp,hxx
+          --diff origin/main HEAD
+
+      - name: Install external libraries
+        id: install_vcpkg
+        run: |
+          git clone https://github.com/Microsoft/vcpkg.git
+          cp config/vcpkg/${{ matrix.profile.toolchain }}.cmake vcpkg/triplets/community/.
+          cd vcpkg
+          ./bootstrap-vcpkg.sh -disableMetrics
+
+      - name: Configure
+        id: configure
+        run: |
+          cmake . -G Ninja                                                                                       \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}                                                          \
+            -DCMAKE_TOOLCHAIN_FILE=`pwd`/vcpkg/scripts/buildsystems/vcpkg.cmake                                  \
+            -DVCPKG_OVERLAY_TRIPLETS=`pwd`/config/vcpkg                                                          \
+            -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=`pwd`/config/cmake/toolchains/${{ matrix.profile.toolchain }}.cmake \
+            -DVCPKG_TARGET_TRIPLET=${{ matrix.profile.toolchain }}                                               \
+            -DSCHREIBER_ENABLE_CLANG_TIDY=Yes                                                                    \
+            -DSCHREIBER_CLANG_TIDY_PATH=${{ matrix.profile.LLVM_root }}/bin/clang-tidy
+
+      - name: Build
+        id: build
+        run: ninja
+
+      - name: Test
+        id: test
+        env:
+          ASAN_OPTIONS: detect_container_overflow=0
+        run: ctest -j$(nproc) --output-on-failure

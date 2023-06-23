@@ -12,7 +12,6 @@ endif()
 set(clang_tidy_path "${${PROJECT_NAME}_CLANG_TIDY_PATH}")
 
 if(EXISTS "${clang_tidy_path}")
-   find_package(Clang REQUIRED)
    set(ClangTidy_FOUND On)
    set(CMAKE_CXX_CLANG_TIDY "${clang_tidy_path}" -p=${CMAKE_BINARY_DIR})
    message(STATUS "Found ${clang_tidy_path}")

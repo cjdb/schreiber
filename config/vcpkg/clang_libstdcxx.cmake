@@ -19,41 +19,30 @@ set(VCPKG_LIBRARY_LINKAGE static)
 
 set(VCPKG_CMAKE_SYSTEM_NAME Linux)
 
-set(CMAKE_C_COMPILER "clang")
-set(CMAKE_CXX_COMPILER "clang++")
-set(CMAKE_AR "llvm-ar")
-set(CMAKE_RC_COMPILER "llvm-rc")
-set(CMAKE_RANLIB "llvm-ranlib")
+set(VCPKG_INSTALL_OPTIONS "--clean-after-build")
+set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_FILE}")
+set(VCPKG_TARGET_TRIPLET clang_libcxx)
+
+set(TRIPLE x86_64-unknown-linux-gnu)
+set(LLVM_ROOT "/usr")
+set(CMAKE_C_COMPILER "${LLVM_ROOT}/bin/clang")
+set(CMAKE_CXX_COMPILER "${LLVM_ROOT}/bin/clang++")
+set(CMAKE_CXX_COMPLIER_TARGET ${TRIPLE})
+
+set(CMAKE_AR "${LLVM_ROOT}/bin/llvm-ar")
+set(CMAKE_RC_COMPILER "${LLVM_ROOT}/bin/llvm-rc")
+set(CMAKE_RANLIB "${LLVM_ROOT}/bin/llvm-ranlib")
 
 string(
-   JOIN " " CMAKE_CXX_FLAGS
-   "${CMAKE_CXX_FLAGS}"
-   -stdlib=libstdc++
-   -fvisibility=hidden
-   -fstack-protector
-   -fdiagnostics-color=always
-)
-
-string(
-   JOIN " " CMAKE_CXX_FLAGS_DEBUG
-   "${CMAKE_CXX_FLAGS_DEBUG}"
-   -fsanitize=address,undefined
-   -fstack-protector-strong
-)
-
-string(
-   JOIN " " CMAKE_CXX_FLAGS_RELEASE
-   "${CMAKE_CXX_FLAGS_RELEASE}"
-   -fsanitize=cfi
-   -fno-sanitize=cfi-unrelated-cast # TODO(cjdb): remove once Catch2 properly supports cfi
-   -march=x86-64-v4
-   -ffast-math
-   -flto=thin
-)
-
-string(
-   JOIN " " CMAKE_EXE_LINKER_FLAGS
-   "${CMAKE_EXE_LINKER_FLAGS}"
-   -fuse-ld=lld
-   -flto=thin
+  JOIN " " CMAKE_CXX_FLAGS
+  -stdlib=libstdc++
+  -fdiagnostics-color=always
+  -fstack-protector-strong
+  -fvisibility=hidden
+  -fsanitize=address
+  -rtlib=compiler-rt
+  -unwindlib=libunwind
+  -pedantic
+  -static-libgcc
+  -ftemplate-backtrace-limit=0
 )

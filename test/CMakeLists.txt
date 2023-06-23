@@ -3,9 +3,3 @@
 #
 set(${PROJECT_NAME}_TEST_FRAMEWORK "Catch2::Catch2;Catch2::Catch2WithMain" CACHE STRING "")
 set(${PROJECT_NAME}_NEEDS_TEST_MAIN Off CACHE BOOL "")
-
-cxx_test(
-   TARGET test_greeting
-   FILENAME "greeting_test.cpp"
-   LINK_TARGETS greeting
-)
