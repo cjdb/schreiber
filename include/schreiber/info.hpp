@@ -59,12 +59,25 @@ namespace info {
 
 		friend auto operator==(decl_info const&, decl_info const&) -> bool = default;
 	protected:
+		enum class kind {
+			parameter_info,
+			template_parameter_info,
+			function_info,
+		};
+
 		decl_info(
+		  kind kind,
 		  clang::Decl const* decl,
 		  std::string description,
 		  std::vector<header_info> headers = {},
 		  std::vector<module_info> modules = {}) noexcept;
+
+		[[nodiscard]] static auto get_kind(decl_info const& decl) noexcept -> kind
+		{
+			return decl.kind_;
+		}
 	private:
+		kind kind_;
 		clang::Decl const* decl_;
 		std::string description_;
 		std::vector<header_info> headers_;
@@ -84,6 +97,9 @@ namespace info {
 
 		friend auto
 		operator==(template_parameter_info const&, template_parameter_info const&) -> bool = default;
+
+		/// Determines whether a ``decl_info const*`` points to a ``parameter_info`` object.
+		static auto classof(decl_info const* decl) -> bool;
 	private:
 		bool show_default_;
 	};
@@ -98,6 +114,9 @@ namespace info {
 		parameter_info(clang::ParmVarDecl const* decl, std::string description) noexcept;
 
 		friend auto operator==(parameter_info const&, parameter_info const&) -> bool = default;
+
+		/// Determines whether a ``decl_info const*`` points to a ``parameter_info`` object.
+		static auto classof(decl_info const* decl) -> bool;
 	private:
 		bool show_default_;
 	};
@@ -204,6 +223,9 @@ namespace info {
 		[[nodiscard]] auto exits_via() const noexcept -> std::span<exits_via_info const>;
 
 		friend auto operator==(function_info const&, function_info const&) -> bool = default;
+
+		/// Determines whether a ``decl_info const*`` points to a ``function_info`` object.
+		static auto classof(decl_info const* decl) -> bool;
 	private:
 		std::vector<template_parameter_info> template_parameters_;
 		std::vector<parameter_info> parameters_;
