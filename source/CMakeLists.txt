@@ -1,6 +1,3 @@
-include(AddLLVM)
-include(AddClang)
-
 cxx_library(
   TARGET info
   FILENAME info.cpp
@@ -11,3 +8,11 @@ cxx_library(
     clangFrontend
     clangTooling
 )
+
+cxx_library(
+  TARGET diagnostic_ids
+  FILENAME diagnostic_ids.cpp
+  LINK_AND_EXPORT_TARGETS
+    clangBasic
+)
+add_dependencies(diagnostic_ids schreiber-tablegen-targets)
