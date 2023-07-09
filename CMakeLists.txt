@@ -30,6 +30,12 @@ if(${PROJECT_NAME}_ENABLE_CLANG_TIDY)
 endif()
 
 include_directories(include)
+include_directories("${CMAKE_BINARY_DIR}/third_party/llvm/")
 include_directories(SYSTEM "${CLANG_INCLUDE_DIRS}")
+
+include(AddLLVM)
+include(AddClang)
+
+add_subdirectory(third_party)
 add_subdirectory(source)
 add_subdirectory(test)
