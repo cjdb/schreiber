@@ -1,6 +1,6 @@
 cxx_test(
-  TARGET test_classof.cpp
-  FILENAME test_classof
+  TARGET test_classof
+  FILENAME test_classof.cpp
   LINK_TARGETS info
 )
 
