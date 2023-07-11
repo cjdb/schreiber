@@ -24,7 +24,7 @@ set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_FILE}")
 set(VCPKG_TARGET_TRIPLET clang_libcxx)
 
 set(TRIPLE x86_64-unknown-linux-gnu)
-set(LLVM_ROOT "/usr")
+set(LLVM_ROOT "/tmp/llvm")
 set(CMAKE_C_COMPILER "${LLVM_ROOT}/bin/clang")
 set(CMAKE_CXX_COMPILER "${LLVM_ROOT}/bin/clang++")
 set(CMAKE_CXX_COMPLIER_TARGET ${TRIPLE})
@@ -36,6 +36,7 @@ set(CMAKE_RANLIB "${LLVM_ROOT}/bin/llvm-ranlib")
 string(
   JOIN " " CMAKE_CXX_FLAGS
   -stdlib=libstdc++
+  -fuse-ld=lld
   -fdiagnostics-color=always
   -fstack-protector-strong
   -fvisibility=hidden

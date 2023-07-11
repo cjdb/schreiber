@@ -5,7 +5,7 @@ set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_PROCESSOR x86_64)
 
 set(TRIPLE x86_64-unknown-linux-gnu)
-set(LLVM_ROOT "/usr")
+set(LLVM_ROOT "/tmp/llvm")
 set(CMAKE_C_COMPILER "${LLVM_ROOT}/bin/clang")
 set(CMAKE_CXX_COMPILER "${LLVM_ROOT}/bin/clang++")
 set(CMAKE_CXX_COMPLIER_TARGET ${TRIPLE})

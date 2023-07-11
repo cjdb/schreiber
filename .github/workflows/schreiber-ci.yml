@@ -15,11 +15,12 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         build_type: [Debug, Release]
+        LLVM_root: [/tmp/llvm]
         profile:
           - toolchain: clang_libstdcxx
-            LLVM_root: /usr
+            stdlib: libstdcxx
           - toolchain: clang_libcxx
-            LLVM_root: /tmp/llvm
+            stdlib: libcxx
         llvm_version: [17]
     steps:
       - name: Install tools
@@ -28,38 +29,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          sudo wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
-          sudo apt-add-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy main'
           sudo apt-get update
           sudo apt-get remove -y .*clang.* .*llvm.*
           sudo apt-get autoremove -y
-          sudo apt-get install -y cmake ninja-build
-          if [[ ${{ matrix.profile.toolchain }} == clang_libcxx ]]; then
-            OTHER_REPO="cjdb/lah-toolchain"
-            WF_NAME="toolchain-release"
-            ARTIFACT_NAME="llvm-x86_64-unknown-linux-gnu.tar.xz"
-            for RUN_ID in `gh run --repo ${OTHER_REPO} list --workflow ${WF_NAME} --json databaseId --jq .[].databaseId`; do
-              gh run --repo ${OTHER_REPO} download ${RUN_ID} -n ${ARTIFACT_NAME} || continue
-              break
-            done
-            tar -xvf ${ARTIFACT_NAME}
-          else
-            sudo apt-get install -y                          \
-              clang                                          \
-              clang-format                                   \
-              clang-tidy                                     \
-              clang-tools                                    \
-              libc++-${{ matrix.llvm_version }}-dev          \
-              libc++abi-${{ matrix.llvm_version }}-dev       \
-              libclang-${{ matrix.llvm_version }}-dev        \
-              libclang-common-${{ matrix.llvm_version }}-dev \
-              libfuzzer-${{ matrix.llvm_version }}-dev       \
-              libunwind-${{ matrix.llvm_version }}-dev       \
-              lld                                            \
-              llvm-dev                                       \
-              python3-clang
-          fi
+          sudo apt-get install -y cmake ninja-build binutils gcc g++
+
+          OTHER_REPO="cjdb/lah-toolchain"
+          WF_NAME="toolchain-release"
+          ARTIFACT_NAME="llvm-x86_64-unknown-linux-gnu-${{ matrix.profile.stdlib }}.tar.xz"
+          for RUN_ID in `gh run --repo ${OTHER_REPO} list --workflow ${WF_NAME} --json databaseId --jq .[].databaseId`; do
+            gh run --repo ${OTHER_REPO} download ${RUN_ID} -n ${ARTIFACT_NAME} || continue
+            break
+          done
+          tar -xvf ${ARTIFACT_NAME}
+
           clang --version
+          clang-tblgen --version
+          llvm-tblgen --version
 
       - name: Checkout
         uses: actions/checkout@v2
@@ -91,7 +77,7 @@ jobs:
             -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=`pwd`/config/cmake/toolchains/${{ matrix.profile.toolchain }}.cmake \
             -DVCPKG_TARGET_TRIPLET=${{ matrix.profile.toolchain }}                                               \
             -DSCHREIBER_ENABLE_CLANG_TIDY=Yes                                                                    \
-            -DSCHREIBER_CLANG_TIDY_PATH=${{ matrix.profile.LLVM_root }}/bin/clang-tidy
+            -DSCHREIBER_CLANG_TIDY_PATH=${{ matrix.LLVM_root }}/bin/clang-tidy
 
       - name: Build
         id: build
