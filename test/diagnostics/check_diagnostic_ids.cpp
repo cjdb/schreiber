@@ -28,7 +28,7 @@ namespace {
 		auto text = std::string();
 		auto stream = llvm::raw_string_ostream(text);
 
-		auto ast = tooling::buildASTFromCode("int f();");
+		auto ast = tooling::buildASTFromCode("int square(int x);");
 		auto& context = ast->getASTContext();
 		auto& engine = context.getDiagnostics();
 		engine.setClient(new clang::TextDiagnosticPrinter(stream, &engine.getDiagnosticOptions(), false));
@@ -41,12 +41,17 @@ namespace {
 		REQUIRE(engine.getNumErrors() == 0);
 		REQUIRE(engine.getNumWarnings() == 0);
 
-		SECTION("reports an error")
+		SECTION("reports an error and a note")
 		{
-			engine.Report(diag::err_unknown_directive) << "\\raven";
-			CHECK(text == "error: unknown directive `\\raven`\n");
+			engine.Report(diag::err_unknown_parameter) << /*template=*/false << "y" << decl;
+			engine.Report(diag::note_unknown_parameter) << /*template=*/false;
 			CHECK(engine.getNumErrors() == 1);
 			CHECK(engine.getNumWarnings() == 0);
+			CHECK(
+			  text
+			  == "error: param 'y' does not map to a parameter in this declaration of 'square'\n"
+			     "note: documentation for parameters must have the same name as one declared in the "
+			     "documented declaration\n");
 		}
 
 		SECTION("reports a warning")
@@ -57,8 +62,8 @@ namespace {
 
 			engine.Report(diag::note_undocumented_decl) << decl;
 			CHECK(text
-			      == "warning: function 'f' is not documented\n"
-			         "note: use `\\undocumented` to indicate that 'f' should not be documented\n");
+			      == "warning: function 'square' is not documented\n"
+			         "note: use '\\undocumented' to indicate that 'square' should not be documented\n");
 
 			CHECK(engine.getNumErrors() == 0);
 			CHECK(engine.getNumWarnings() == 1);
