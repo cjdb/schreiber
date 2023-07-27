@@ -16,3 +16,5 @@ cxx_library(
     clangBasic
 )
 add_dependencies(diagnostic_ids schreiber-tablegen-targets)
+
+add_subdirectory(parser)
