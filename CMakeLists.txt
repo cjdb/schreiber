@@ -29,6 +29,12 @@ if(${PROJECT_NAME}_ENABLE_CLANG_TIDY)
 	find_package(ClangTidy REQUIRED)
 endif()
 
+execute_process(
+  COMMAND "${CMAKE_CXX_COMPILER}" -print-target-triple
+  COMMAND tr -d '\n'
+  OUTPUT_VARIABLE TARGET_TRIPLE)
+message(STATUS "TARGET_TRIPLE set to '${TARGET_TRIPLE}'")
+
 include_directories(include)
 include_directories("${CMAKE_BINARY_DIR}/third_party/llvm/")
 include_directories(SYSTEM "${CLANG_INCLUDE_DIRS}")
@@ -39,3 +45,4 @@ include(AddClang)
 add_subdirectory(third_party)
 add_subdirectory(source)
 add_subdirectory(test)
+add_subdirectory(utilities)

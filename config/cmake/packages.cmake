@@ -1,8 +1,9 @@
 # find_package(absl CONFIG REQUIRED)
 find_package(Catch2 CONFIG REQUIRED)
-find_package(LLVM 17 CONFIG REQUIRED)
-find_package(Clang 17 CONFIG REQUIRED)
+find_package(LLVM 18 CONFIG REQUIRED)
+find_package(Clang 18 CONFIG REQUIRED)
 find_package(constexpr-contracts CONFIG REQUIRED)
+find_package(Python REQUIRED COMPONENTS Interpreter)
 # find_package(fmt CONFIG REQUIRED)
 
 list(APPEND CMAKE_MODULE_PATH ${LLVM_DIR})
