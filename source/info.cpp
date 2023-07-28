@@ -5,6 +5,7 @@
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclBase.h>
 #include <clang/AST/DeclTemplate.h>
+#include <clang/Basic/SourceLocation.h>
 #include <schreiber/info.hpp>
 #include <span>
 #include <string>
@@ -135,8 +136,12 @@ namespace info {
 		return get_kind(*decl) == kind::function_info;
 	}
 
-	parameter_info::parameter_info(clang::ParmVarDecl const* decl, std::string description) noexcept
+	parameter_info::parameter_info(
+	  clang::SourceRange const source_range,
+	  clang::ParmVarDecl const* decl,
+	  std::string description) noexcept
 	: decl_info(kind::parameter_info, decl, std::move(description))
+	, source_range_(source_range)
 	{}
 
 	auto parameter_info::classof(decl_info const* const decl) -> bool
@@ -144,26 +149,42 @@ namespace info {
 		return get_kind(*decl) == kind::parameter_info;
 	}
 
+	auto parameter_info::source_range() const noexcept -> clang::SourceRange
+	{
+		return source_range_;
+	}
+
 	template_parameter_info::template_parameter_info(
+	  clang::SourceRange const source_range,
 	  clang::TemplateTypeParmDecl const* decl,
 	  std::string description)
 	: decl_info(kind::template_parameter_info, decl, std::move(description))
+	, source_range_(source_range)
 	{}
 
 	template_parameter_info::template_parameter_info(
+	  clang::SourceRange const source_range,
 	  clang::NonTypeTemplateParmDecl const* decl,
 	  std::string description)
 	: decl_info(kind::template_parameter_info, decl, std::move(description))
+	, source_range_(source_range)
 	{}
 
 	template_parameter_info::template_parameter_info(
+	  clang::SourceRange const source_range,
 	  clang::TemplateTemplateParmDecl const* decl,
 	  std::string description)
 	: decl_info(kind::template_parameter_info, decl, std::move(description))
+	, source_range_(source_range)
 	{}
 
 	auto template_parameter_info::classof(decl_info const* const decl) -> bool
 	{
 		return get_kind(*decl) == kind::template_parameter_info;
+	}
+
+	auto template_parameter_info::source_range() const noexcept -> clang::SourceRange
+	{
+		return source_range_;
 	}
 } // namespace info

@@ -43,7 +43,7 @@ void f(T t);
 			SECTION("parameter_info")
 			{
 				auto const param = decl->getAsFunction()->getParamDecl(0);
-				auto p = info::parameter_info(param, {});
+				auto p = info::parameter_info(param->getSourceRange(), param, {});
 				CHECK_FALSE(info::function_info::classof(static_cast<info::decl_info const*>(&p)));
 				CHECK(info::parameter_info::classof(static_cast<info::decl_info const*>(&p)));
 				CHECK_FALSE(info::template_parameter_info::classof(static_cast<info::decl_info const*>(&p)));
@@ -54,6 +54,7 @@ void f(T t);
 				auto const template_param_list = decl->getTemplateParameters();
 				REQUIRE(template_param_list->size() == 1);
 				auto t = info::template_parameter_info(
+				  template_param_list->getSourceRange(),
 				  llvm::dyn_cast<clang::TemplateTypeParmDecl>(template_param_list->getParam(0)),
 				  {});
 				CHECK_FALSE(info::function_info::classof(static_cast<info::decl_info const*>(&t)));

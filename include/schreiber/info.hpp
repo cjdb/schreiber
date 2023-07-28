@@ -6,6 +6,7 @@
 
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclTemplate.h>
+#include <clang/Basic/SourceLocation.h>
 #include <span>
 #include <string>
 #include <string_view>
@@ -26,6 +27,7 @@ namespace info::detail {
 	template<sequences>
 	struct sequenced_info final {
 		std::string data;
+		clang::SourceRange source_range;
 
 		friend auto operator==(sequenced_info const&, sequenced_info const&) -> bool = default;
 	};
@@ -89,19 +91,33 @@ namespace info {
 	public:
 		/// Constructs a ``template_parameter_info`` object.
 		///
+		/// \param source_range A range indicating where in the source file the directive is.
 		/// \param decl A pointer to the template parameter's declaration.
 		/// \param description A description of the declaration.
-		template_parameter_info(clang::TemplateTypeParmDecl const* decl, std::string description);
-		template_parameter_info(clang::NonTypeTemplateParmDecl const* decl, std::string description);
-		template_parameter_info(clang::TemplateTemplateParmDecl const* decl, std::string description);
+		template_parameter_info(
+		  clang::SourceRange source_range,
+		  clang::TemplateTypeParmDecl const* decl,
+		  std::string description);
+		template_parameter_info(
+		  clang::SourceRange source_range,
+		  clang::NonTypeTemplateParmDecl const* decl,
+		  std::string description);
+		template_parameter_info(
+		  clang::SourceRange source_range,
+		  clang::TemplateTemplateParmDecl const* decl,
+		  std::string description);
 
 		friend auto
 		operator==(template_parameter_info const&, template_parameter_info const&) -> bool = default;
+
+		/// Returns where in the source file the directive is.
+		[[nodiscard]] auto source_range() const noexcept -> clang::SourceRange;
 
 		/// Determines whether a ``decl_info const*`` points to a ``parameter_info`` object.
 		static auto classof(decl_info const* decl) -> bool;
 	private:
 		bool show_default_;
+		clang::SourceRange source_range_;
 	};
 
 	/// Describes a function parameter.
@@ -109,9 +125,16 @@ namespace info {
 	public:
 		/// Constructs a ``parameter_info`` object.
 		///
+		/// \param source_range A range indicating where in the source file the directive is
 		/// \param decl A pointer to the parameter's declaration.
 		/// \param description A description of the declaration.
-		parameter_info(clang::ParmVarDecl const* decl, std::string description) noexcept;
+		parameter_info(
+		  clang::SourceRange source_range,
+		  clang::ParmVarDecl const* decl,
+		  std::string description) noexcept;
+
+		/// Returns where in the source file the directive is.
+		[[nodiscard]] auto source_range() const noexcept -> clang::SourceRange;
 
 		friend auto operator==(parameter_info const&, parameter_info const&) -> bool = default;
 
@@ -119,6 +142,7 @@ namespace info {
 		static auto classof(decl_info const* decl) -> bool;
 	private:
 		bool show_default_;
+		clang::SourceRange source_range_;
 	};
 
 	/// Describes a precondition.

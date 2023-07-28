@@ -43,7 +43,7 @@ namespace {
 
 			constexpr auto description = "Returns 0."sv;
 			auto parameters = std::vector<info::parameter_info>{};
-			auto const returns = info::return_info{"0"};
+			auto const returns = info::return_info{"0", {}};
 
 			SECTION("barebones documentation")
 			{
@@ -51,7 +51,7 @@ namespace {
 				  decl,
 				  std::string(description),
 				  parameters,
-				  info::return_info{""},
+				  info::return_info{"", {}},
 				  {},
 				  {},
 				  {},
@@ -74,9 +74,15 @@ namespace {
 
 			SECTION("uses return value, but not description")
 			{
-				auto const headers = std::vector{info::header_info{"header.hpp"}};
-				auto const modules = std::vector{info::module_info{"module.m"}};
-				auto const throws = std::vector{info::throws_info{"yes"}};
+				auto const headers = std::vector{
+				  info::header_info{"header.hpp", {}}
+        };
+				auto const modules = std::vector{
+				  info::module_info{"module.m", {}}
+        };
+				auto const throws = std::vector{
+				  info::throws_info{"yes", {}}
+        };
 
 				auto const info =
 				  info::function_info(decl, "", parameters, returns, {}, {}, throws, {}, headers, modules);
@@ -97,19 +103,19 @@ namespace {
 			SECTION("uses description and return value")
 			{
 				auto const headers = std::vector<info::header_info>{
-				  {"hello.hpp"},
-				  {"world.hpp"},
+				  {"hello.hpp", {}},
+				  {"world.hpp", {}},
 				};
 				auto const modules = std::vector<info::module_info>{
-				  {"goodbye"},
+				  {"goodbye", {}},
 				};
 				auto const throws = std::vector<info::throws_info>{
-				  {"but"},
-				  {"not for"},
+				  {    "but", {}},
+				  {"not for", {}},
 				};
 				auto const exits_via = std::vector<info::exits_via_info>{
-				  {"very"},
-				  {"long!"},
+				  { "very", {}},
+				  {"long!", {}},
 				};
 				auto const info = info::function_info(
 				  decl,
@@ -146,16 +152,16 @@ namespace {
 			REQUIRE(decl->param_size() == 1);
 
 			constexpr auto description = "Returns ``x * x``."sv;
-			auto const returns = info::return_info{"x * x"};
+			auto const returns = info::return_info{"x * x", {}};
 			auto const parameters = std::vector{
-			  info::parameter_info(decl->getParamDecl(0), "The value to square."),
+			  info::parameter_info(decl->getSourceRange(), decl->getParamDecl(0), "The value to square."),
 			};
 			auto const preconditions = std::vector<info::precondition_info>{
-			  {"``std::is_nan(x) == false``"},
-			  {"``std::is_inf(x) == false``"},
+			  {"``std::is_nan(x) == false``", {}},
+			  {"``std::is_inf(x) == false``", {}},
 			};
 			auto const postconditions = std::vector<info::postcondition_info>{
-			  {"square(x) >= 0.0"},
+			  {"square(x) >= 0.0", {}},
 			};
 
 			SECTION("doesn't describe x")
@@ -206,6 +212,7 @@ namespace {
 				REQUIRE(info.parameters().size() == 1);
 				CHECK(info.parameters()[0].decl() == parameters[0].decl());
 				CHECK(info.parameters()[0].description() == parameters[0].description());
+				CHECK(info.parameters()[0].source_range() == decl->getSourceRange());
 				CHECK(info.returns() == returns);
 				CHECK(info.exception_specifier().data.empty());
 				CHECK(std::ranges::equal(info.preconditions(), preconditions));
@@ -226,6 +233,7 @@ namespace {
 	{
 		REQUIRE(i < params->size());
 		return info::template_parameter_info{
+		  params->getParam(i)->getSourceRange(),
 		  llvm::dyn_cast<T>(params->getParam(i)),
 		  std::string(description),
 		};
@@ -249,12 +257,12 @@ struct range {
 		auto const decl = *record->method_begin();
 		constexpr auto description = "Returns a value."sv;
 		auto parameters = std::vector<info::parameter_info>{};
-		auto const returns = info::return_info{"a value"};
+		auto const returns = info::return_info{"a value", {}};
 		auto const preconditions = std::vector<info::precondition_info>{
-		  {"``last`` is reachable from ``first``."},
+		  {"``last`` is reachable from ``first``.", {}},
 		};
 		auto const postconditions = std::vector<info::postcondition_info>{
-		  {"``insert(first, last)`` returns an iterator in the closed interval $[first, last]$."},
+		  {"``insert(first, last)`` returns an iterator in the closed interval $[first, last]$.", {}},
 		};
 
 		auto const info = info::function_info(
@@ -312,16 +320,28 @@ auto f(Args&&... args) noexcept((is_nothrow_copyable<Args> and ...));
 		  make_template_param<clang::TemplateTypeParmDecl>(template_param_list, 4, "Syrup Village"),
 		};
 		auto const parameters = std::vector{
-		  info::parameter_info(decl->getAsFunction()->getParamDecl(0), "Baratie"),
+		  info::parameter_info(decl->getSourceRange(), decl->getAsFunction()->getParamDecl(0), "Baratie"),
 		};
-		auto const exception_specifier = info::noexcept_if_info{"Cocoyasi Village"};
-		auto const returns = info::return_info{"Arlong Park"};
-		auto const preconditions = std::vector<info::precondition_info>{{"Loguetown"}};
-		auto const postconditions = std::vector<info::postcondition_info>{{"Reverse Mountain"}};
-		auto const throws = std::vector<info::throws_info>{{"Twin Cape"}};
-		auto const exits_via = std::vector<info::exits_via_info>{{"Whisky Peak"}};
-		auto const headers = std::vector<info::header_info>{{"Little Garden"}};
-		auto const modules = std::vector<info::module_info>{{"Drum"}};
+		auto const exception_specifier = info::noexcept_if_info{"Cocoyasi Village", {}};
+		auto const returns = info::return_info{"Arlong Park", {}};
+		auto const preconditions = std::vector<info::precondition_info>{
+		  {"Loguetown", {}}
+    };
+		auto const postconditions = std::vector<info::postcondition_info>{
+		  {"Reverse Mountain", {}}
+    };
+		auto const throws = std::vector<info::throws_info>{
+		  {"Twin Cape", {}}
+    };
+		auto const exits_via = std::vector<info::exits_via_info>{
+		  {"Whisky Peak", {}}
+    };
+		auto const headers = std::vector<info::header_info>{
+		  {"Little Garden", {}}
+    };
+		auto const modules = std::vector<info::module_info>{
+		  {"Drum", {}}
+    };
 
 		SECTION("no template parameters described")
 		{
@@ -399,6 +419,12 @@ auto f(Args&&... args) noexcept((is_nothrow_copyable<Args> and ...));
 			CHECK(info.decl() == decl);
 			CHECK(info.description() == description);
 			CHECK(std::ranges::equal(info.template_parameters(), template_parameters));
+			CHECK(std::ranges::equal(
+			  info.template_parameters(),
+			  *(decl->getTemplateParameters()),
+			  {},
+			  &info::template_parameter_info::source_range,
+			  &clang::NamedDecl::getSourceRange));
 			CHECK(info.returns() == returns);
 			CHECK(std::ranges::equal(info.preconditions(), preconditions));
 			CHECK(std::ranges::equal(info.postconditions(), postconditions));
