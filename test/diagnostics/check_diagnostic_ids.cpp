@@ -44,14 +44,15 @@ namespace {
 		SECTION("reports an error and a note")
 		{
 			engine.Report(diag::err_unknown_parameter) << /*template=*/false << "y" << decl;
-			engine.Report(diag::note_unknown_parameter) << /*template=*/false;
+			engine.Report(diag::note_unknown_parameter) << "'\\param'";
 			CHECK(engine.getNumErrors() == 1);
 			CHECK(engine.getNumWarnings() == 0);
 			CHECK(
 			  text
-			  == "error: param 'y' does not map to a parameter in this declaration of 'square'\n"
-			     "note: documentation for parameters must have the same name as one declared in the "
-			     "documented declaration\n");
+			  == "error: documented parameter 'y' does not map to a parameter in this declaration of "
+			     "'square'\n"
+			     "note: the word immediately after '\\param' must name one of the parameters in "
+			     "the function declaration\n");
 		}
 
 		SECTION("reports a warning")
