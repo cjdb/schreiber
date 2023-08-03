@@ -10,6 +10,7 @@
 #include <clang/Basic/Diagnostic.h>
 #include <clang/Basic/SourceLocation.h>
 #include <clang/Basic/SourceManager.h>
+#include <expected>
 #include <schreiber/info.hpp>
 #include <string_view>
 
@@ -63,6 +64,33 @@ namespace parser {
 
 #include "lexer/CommentCommandInfo.inc"
 
+	using line_iterator = std::vector<clang::RawComment::CommentLine>::const_iterator;
+
+	struct directive {
+		command_info const* token;
+		std::string_view text;
+		clang::SourceRange range;
+
+		[[nodiscard]]
+		static auto extract(std::string_view text, clang::SourceLocation begin_loc) -> directive;
+	};
+
+	struct next_directive {
+		line_iterator line;
+		clang::SourceLocation location;
+	};
+
+	struct description {
+		std::string text;
+		clang::SourceRange range;
+		next_directive next;
+
+		[[nodiscard]]
+		static auto
+		extract(line_iterator first, line_iterator last, std::string_view text, clang::SourceLocation begin_loc)
+		  -> description;
+	};
+
 	class parser {
 	public:
 		explicit parser(clang::ASTContext& context) noexcept;
@@ -97,75 +125,65 @@ namespace parser {
 		/// Emits a warning for a declaration being undocumented.
 		void diagnose_undocumented_decl(clang::NamedDecl const*) const;
 
-		/// Parses a function declaration's documentation.
-		///
-		/// Function declarations support the following directives:
-		///
-		/// :list-table:
-		///   :header-rows: 1
-		///
-		///   * - ``\\param <parameter-name> <description>``
-		///     - Describes one of the function's parameters. The ``<parameter-name>`` must match a name
-		///       in the declaration immediately following the documentation.
-		///   * - ``\\final-param <parameter-name>``
-		///     - Tells the tool to hide all parameters following ``<parameter-name>`` when generating
-		///       the function declaration component of the documentation. The parameter after
-		///       ``<parameter-name>`` must have a default value.
-		///   * - ``\\returns <description>``
-		///     - Describes what the function returns. Not permitted if the function is annotated with
-		///       ``[[noreturn]]``.
-		///   * - ``\\pre <description>``
-		///     - Describes a precondition for the function. May be repeated.
-		///   * - ``\\post <description>``
-		///     - Describes a postcondition for the function. May be repeated.
-		///   * - ``\\throws <type> <description>``
-		///     - Describes an exception that might be thrown by the function. The function cannot be
-		///       ``noexcept``. May be repeated.
-		///   * - ``\\exits-via <description>``
-		///     - Describes how a function exits, aside from returning or throwing (e.g. via
-		///       ``std::abort()``).
-		///   * - ``\\headers <paths>``
-		///     - A comma-separated list of typical include paths that the declaration can be imported
-		///       from. The path validity is not checked. May be repeated.
-		///   * - ``\\modules <module-name>``
-		///     - A comma-separated list of modules that the declaration can be imported from.
-		///       ``<module-name>`` must be a valid identifier. May be repeated.
-		///
-		/// There isn't any need to document specifiers, standard attributes, and some non-standard
-		/// attributes recognised by Clang: these will be picked up and put into the documentation.
-		///
-		/// \param decl A function declaration.
+		void parse_directives(
+		  info::entity_info& decl,
+		  line_iterator first,
+		  line_iterator last,
+		  clang::SourceLocation begin_loc);
+
+		struct parse_result_t {
+			std::unique_ptr<info::basic_info> info;
+			directive current;
+			next_directive next;
+		};
+
+		// Parses a function declaration's documentation.
+		//
+		// Function declarations support the following directives:
+		//
+		// :list-table:
+		//   :header-rows: 1
+		//
+		//   * - ``\\param <parameter-name> <description>``
+		//     - Describes one of the function's parameters. The ``<parameter-name>`` must match a name
+		//       in the declaration immediately following the documentation.
+		//   * - ``\\final-param <parameter-name>``
+		//     - Tells the tool to hide all parameters following ``<parameter-name>`` when generating
+		//       the function declaration component of the documentation. The parameter after
+		//       ``<parameter-name>`` must have a default value.
+		//   * - ``\\returns <description>``
+		//     - Describes what the function returns. Not permitted if the function is annotated with
+		//       ``[[noreturn]]``.
+		//   * - ``\\pre <description>``
+		//     - Describes a precondition for the function. May be repeated.
+		//   * - ``\\post <description>``
+		//     - Describes a postcondition for the function. May be repeated.
+		//   * - ``\\throws <type> <description>``
+		//     - Describes an exception that might be thrown by the function. The function cannot be
+		//       ``noexcept``. May be repeated.
+		//   * - ``\\exits-via <description>``
+		//     - Describes how a function exits, aside from returning or throwing (e.g. via
+		//       ``std::abort()``).
+		//   * - ``\\headers <paths>``
+		//     - A comma-separated list of typical include paths that the declaration can be imported
+		//       from. The path validity is not checked. May be repeated.
+		//   * - ``\\modules <module-name>``
+		//     - A comma-separated list of modules that the declaration can be imported from.
+		//       ``<module-name>`` must be a valid identifier. May be repeated.
+		//
+		// There isn't any need to document specifiers, standard attributes, and some non-standard
+		// attributes recognised by Clang: these will be picked up and put into the documentation.
 		[[nodiscard]]
-		auto visit(clang::FunctionDecl const* decl) const -> std::unique_ptr<info::decl_info>;
+		auto visit(clang::FunctionDecl const* decl, directive directive, description description)
+		  -> std::expected<parse_result_t, next_directive>;
 	};
 
 	[[nodiscard]] auto to_text(clang::RawComment::CommentLine const& line) noexcept -> std::string_view;
 	[[nodiscard]] auto starts_with_backslash(std::string_view c) noexcept -> bool;
 	[[nodiscard]] auto is_space(char c) noexcept -> bool;
 
-	using line_iterator = std::vector<clang::RawComment::CommentLine>::const_iterator;
-
-	struct directive {
-		std::string_view text;
-		clang::SourceRange range;
-
-		[[nodiscard]]
-		static auto extract(std::string_view text, clang::SourceLocation begin_loc) -> directive;
-	};
-
-	struct description {
-		std::string text;
-		clang::SourceRange range;
-		line_iterator next_directive;
-
-		[[nodiscard]]
-		static auto
-		extract(line_iterator first, line_iterator last, std::string_view text, clang::SourceLocation begin_loc)
-		  -> description;
-	};
-
-	auto parse_module_info(std::string_view text) -> std::vector<info::module_info>;
-	auto parse_header_info(std::string_view text) -> std::vector<info::header_info>;
+	auto parse_module_info(std::string_view text) -> std::vector<info::decl_info::module_info>;
+	auto parse_header_info(std::string_view text) -> std::vector<info::decl_info::header_info>;
 } // namespace parser
 
 #endif // SCHREIBER_PARSER_HPP

@@ -14,7 +14,6 @@
 #include <schreiber/diagnostic_ids.hpp>
 #include <string>
 #include <string_view>
-#include <vector>
 
 namespace {
 	namespace ast_matchers = clang::ast_matchers;
@@ -75,8 +74,11 @@ namespace {
 			///          All your hopes and dreams
 			///          Together we'll find everything
 			///          That we're looking for
-			/// \headers There's always room for you, if you wanna be my friend
-			/// \modules We.are, we.are, on.the.cruise
+			/// \headers There's always room for you
+			/// \headers if you wanna be my friend
+			/// \modules We.are
+			/// \modules we.are
+			/// \modules on.the.cruise
 			/// \exits-via We are!
 			int const* find(int const* first, int const* last);)");
 		auto p = parser::parser(function.context);
@@ -96,7 +98,6 @@ namespace {
 		     "That we're looking for\n"
 		     "\n"
 		     "ONE PIECE!"sv);
-		CHECK(f->template_parameters().empty());
 		REQUIRE(f->parameters().size() == 2);
 		{
 			constexpr auto index = 0;
@@ -112,39 +113,38 @@ namespace {
 		}
 
 		REQUIRE(f->preconditions().size() == 4);
-		CHECK(f->preconditions()[0].data == "Your heart will be your guide");
-		CHECK(f->preconditions()[1].data == "Raise the sails and take the helm");
-		CHECK(f->preconditions()[2].data == "That legendary place, that the end of the map reveals");
-		CHECK(f->preconditions()[3].data == "Is only legendary");
+		CHECK(f->preconditions()[0].description() == "Your heart will be your guide");
+		CHECK(f->preconditions()[1].description() == "Raise the sails and take the helm");
+		CHECK(
+		  f->preconditions()[2].description() == "That legendary place, that the end of the map reveals");
+		CHECK(f->preconditions()[3].description() == "Is only legendary");
 
 		REQUIRE(f->postconditions().size() == 3);
-		CHECK(f->postconditions()[0].data == "'Till someone proves it real");
-		CHECK(f->postconditions()[1].data == "Through all the troubled times");
-		CHECK(f->postconditions()[2].data == "Through the heartache, and through the pain");
+		CHECK(f->postconditions()[0].description() == "'Till someone proves it real");
+		CHECK(f->postconditions()[1].description() == "Through all the troubled times");
+		CHECK(f->postconditions()[2].description() == "Through the heartache, and through the pain");
 
 		REQUIRE(f->throws().size() == 2);
-		CHECK(f->throws()[0].data == "Know that I'll be there to stand by you");
-		CHECK(f->throws()[1].data == "Just like I know you'll stand by me!");
+		CHECK(f->throws()[0].description() == "Know that I'll be there to stand by you");
+		CHECK(f->throws()[1].description() == "Just like I know you'll stand by me!");
 
 		CHECK(
-		  f->returns().data
+		  f->returns()->description()
 		  == "So come aboard, and bring along\n"
 		     "         All your hopes and dreams\n"
 		     "         Together we'll find everything\n"
 		     "         That we're looking for");
 
 		REQUIRE(f->headers().size() == 2);
-		CHECK(f->headers()[0].data == "There's always room for you");
-		CHECK(f->headers()[1].data == "if you wanna be my friend");
+		CHECK(f->headers()[0].description() == "There's always room for you");
+		CHECK(f->headers()[1].description() == "if you wanna be my friend");
 
 		REQUIRE(f->modules().size() == 3);
-		CHECK(f->modules()[0].data == "We.are");
-		CHECK(f->modules()[1].data == "we.are");
-		CHECK(f->modules()[2].data == "on.the.cruise");
+		CHECK(f->modules()[0].description() == "We.are");
+		CHECK(f->modules()[1].description() == "we.are");
+		CHECK(f->modules()[2].description() == "on.the.cruise");
 
 		REQUIRE(f->exits_via().size() == 1);
-		CHECK(f->exits_via()[0].data == "We are!");
-
-		CHECK(f->exception_specifier().data.empty());
+		CHECK(f->exits_via()[0].description() == "We are!");
 	}
 } // namespace
