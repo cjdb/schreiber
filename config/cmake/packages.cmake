@@ -1,4 +1,4 @@
-# find_package(absl CONFIG REQUIRED)
+find_package(absl CONFIG REQUIRED)
 find_package(Catch2 CONFIG REQUIRED)
 find_package(LLVM 18 CONFIG REQUIRED)
 find_package(Clang 18 CONFIG REQUIRED)

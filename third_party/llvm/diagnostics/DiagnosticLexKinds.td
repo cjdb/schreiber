@@ -41,9 +41,21 @@ let Component = "Lex", CategoryName = "Lexical issue" in {
     "the word immediately after %0 must name one of the parameters in the function declaration"
   >;
 
+  def err_repeated_directive : Error<
+    "repeated %0 directive for %select{function|parameter}1 %2%select{| in function %3}1"
+  >;
+
+  def err_lone_backslash : Error<
+    "a backslash must be followed by a non-space character"
+  >;
+
   // Warnings (and correstponding notes)
   def warn_unknown_directive : Warning<
     "unknown directive '\\%0'"
+  >;
+
+  def warn_unsupported_doxygen_directive : Warning<
+    "'\\%0' is an unsupported Doxygen command and will be ignored%select{|; use %2 instead}1"
   >;
 
   def warn_undocumented_decl : Warning<

@@ -17,6 +17,7 @@
 #include "llvm/TableGen/Record.h"
 #include "llvm/TableGen/StringMatcher.h"
 #include "llvm/TableGen/TableGenBackend.h"
+#include <algorithm>
 #include <vector>
 
 using namespace llvm;
@@ -27,21 +28,38 @@ void EmitSchreiberCommentCommandInfo(RecordKeeper &Records, raw_ostream &OS) {
                        "comments",
                        OS);
 
-  OS << "#include <array>\n"
-        "#include <string_view>\n"
+  OS << "// NOLINTBEGIN\n"
         "\n"
-        "namespace {\n"
-        "\tauto const commands = std::array{\n";
+        "inline auto const commands = std::array{\n";
+
   std::vector<Record *> Tags = Records.getAllDerivedDefinitions("Command");
   for (size_t i = 0, e = Tags.size(); i != e; ++i) {
     Record &Tag = *Tags[i];
-    OS << "\t\tcommand_info{"
+    auto NameForEnum = llvm::SmallString<16>(Tag.getValueAsString("Name"));
+    std::ranges::replace(NameForEnum, '-', '_');
+    OS << "  command_info{\n"
        // Global directives
-       << "\"" << Tag.getValueAsString("Name") << "\", "
-       << "},\n";
+       << "    .name = \"" << Tag.getValueAsString("Name") << "\",\n"
+       << "    .kind = command_info::" << NameForEnum << ",\n"
+       << "    .is_export_command = " << Tag.getValueAsBit("IsExportCommand")
+       << ",\n"
+       << "    .is_param_command = " << Tag.getValueAsBit("IsParamCommand")
+       << ",\n"
+       << "    .is_exit_command = " << Tag.getValueAsBit("IsExitCommand")
+       << ",\n"
+       << "    .is_contract_command = "
+       << Tag.getValueAsBit("IsContractCommand") << ",\n"
+       << "    .equivalent_doxygen_commands = {";
+
+    auto const EquivalentDoxygenCommands =
+        Tag.getValueAsListOfStrings("EquivalentDoxygenCommands");
+    for (auto const &Command : EquivalentDoxygenCommands) {
+      OS << '"' << Command << "\", ";
+    }
+    OS << "}\n"
+          "  },\n";
   }
-  OS << "\t};\n"
-        "} // unnamed namespace\n\n";
+  OS << "};\n";
 
   std::vector<StringMatcher::StringPair> Matches;
   for (size_t i = 0, e = Tags.size(); i != e; ++i) {
@@ -52,10 +70,11 @@ void EmitSchreiberCommentCommandInfo(RecordKeeper &Records, raw_ostream &OS) {
     Matches.emplace_back(std::move(Name), std::move(Return));
   }
 
-  OS << "auto lex_directive(std::string_view name) -> command_info const* {\n";
+  OS << "inline auto lex(std::string_view name) -> command_info const* {\n";
   StringMatcher("name", Matches, OS).Emit();
   OS << "  return nullptr;\n"
-     << "}\n\n";
+     << "}\n"
+        "// NOLINTEND\n";
 }
 
 namespace {

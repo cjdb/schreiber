@@ -1,6 +1,10 @@
 // Copyright (c) Google LLC.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
+#include <absl/strings/str_cat.h>
+#include <absl/strings/strip.h>
+#include <algorithm>
+#include <cctype>
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
@@ -8,11 +12,17 @@
 #include <clang/Basic/Diagnostic.h>
 #include <clang/Basic/SourceLocation.h>
 #include <clang/Basic/SourceManager.h>
+#include <llvm/ADT/StringExtras.h>
+#include <numeric>
 #include <optional>
+#include <ranges>
 #include <schreiber/diagnostic_ids.hpp>
 #include <schreiber/info.hpp>
 #include <schreiber/parser.hpp>
 #include <set>
+
+namespace stdr = std::ranges;
+namespace stdv = std::views;
 
 namespace {
 	struct compare_locations {
@@ -164,10 +174,6 @@ namespace {
 } // namespace
 
 namespace parser {
-#include "lexer/CommentCommandInfo.inc"
-
-	namespace stdr = std::ranges;
-
 	parser::parser(clang::ASTContext& context) noexcept
 	: context_(context)
 	, source_manager_(context.getSourceManager())
@@ -196,6 +202,10 @@ namespace parser {
 				undocumented_declarations.insert(canonical);
 			}
 			return nullptr;
+		}
+
+		if (auto const function = llvm::dyn_cast<clang::FunctionDecl>(decl)) {
+			return visit(function);
 		}
 
 		return nullptr;
@@ -236,22 +246,22 @@ namespace parser {
 				  : *kind == entity::move_assignment or *kind == entity::copy_assignment
 				    ? assignment
 				    : constructor;
-				diags_.Report(decl->getLocation(), diag::warn_undocumented_decl)
+				diagnose(decl->getLocation(), diag::warn_undocumented_decl)
 				  << smf << adjective << parent << noun;
 				break;
 			}
 			default: {
-				diags_.Report(decl->getLocation(), diag::warn_undocumented_decl)
+				diagnose(decl->getLocation(), diag::warn_undocumented_decl)
 				  << member << prefix(*kind) << decl << *kind;
 				break;
 			}
 			}
 		}
 		else {
-			diags_.Report(decl->getLocation(), diag::warn_undocumented_decl) << entity << *kind << decl;
+			diagnose(decl->getLocation(), diag::warn_undocumented_decl) << entity << *kind << decl;
 		}
 
-		diags_.Report(decl->getLocation(), diag::note_undocumented_decl) << decl;
+		diagnose(decl->getLocation(), diag::note_undocumented_decl) << decl;
 	}
 
 	void parser::diagnose_unknown_directive(
@@ -267,8 +277,11 @@ namespace parser {
 		if (doxygen_command != nullptr) {
 			diagnose_unsupported_doxygen_directive(next_loc, comment_begin, doxygen_command);
 		}
+		else if (not directive.empty()) {
+			diagnose(next_loc, diag::warn_unknown_directive) << directive;
+		}
 		else {
-			diags_.Report(next_loc, diag::warn_unknown_directive) << directive;
+			diagnose(next_loc, diag::err_lone_backslash);
 		}
 	}
 
@@ -295,7 +308,7 @@ namespace parser {
 		  });
 
 		auto diag =
-		  diags_.Report(directive_location, diag::warn_unsupported_doxygen_directive)
+		  diagnose(directive_location, diag::warn_unsupported_doxygen_directive)
 		  << directive << /*suggest_alternative=*/(equivalent_directive != commands.end())
 		  << equivalent_directive->kind;
 
@@ -309,5 +322,87 @@ namespace parser {
 			  directive_location.getLocWithOffset(static_cast<int>(directive.size() + 1)));
 			diag << clang::FixItHint::CreateReplacement(directive_range, equivalent_directive->name);
 		}
+	}
+
+	auto
+	parser::diagnose(clang::SourceLocation loc, unsigned int diag_id) const -> clang::DiagnosticBuilder
+	{
+		return diags_.Report(loc, diag_id);
+	}
+
+	auto to_text(clang::RawComment::CommentLine const& line) noexcept -> std::string_view
+	{
+		return line.Text;
+	}
+
+	auto starts_with_backslash(std::string_view const c) noexcept -> bool
+	{
+		return c.starts_with('\\');
+	}
+
+	auto is_space(char const c) noexcept -> bool
+	{
+		return static_cast<bool>(std::isspace(c));
+	}
+
+	auto
+	directive::extract(std::string_view const text, clang::SourceLocation const begin_loc) -> directive
+	{
+		auto raw_directive =
+		  std::string_view(text.begin() + 1, text.end())
+		  | stdv::take_while([](char const c) { return not std::isspace(c); });
+
+		auto const raw_end = stdr::next(raw_directive.begin(), raw_directive.end());
+		auto const result_text = std::string_view(raw_directive.begin(), raw_end);
+		return directive{
+		  .text = result_text,
+		  .range = {begin_loc, begin_loc.getLocWithOffset(static_cast<int>(result_text.size()))}
+    };
+	}
+
+	auto description::extract(
+	  line_iterator first,
+	  line_iterator last,
+	  std::string_view const text,
+	  clang::SourceLocation const begin_loc) -> description
+	{
+		auto next_directive =
+		  stdr::find_if(first + 1, last, starts_with_backslash, &clang::RawComment::CommentLine::Text);
+		auto const end_loc = std::accumulate(
+		  first,
+		  next_directive,
+		  begin_loc,
+		  [](clang::SourceLocation const& x, clang::RawComment::CommentLine const& y) {
+			  return x.getLocWithOffset(static_cast<int>(y.Text.size() + y.Begin.getColumn()));
+		  });
+		return description{
+		  .text = absl::StrCat(
+		    text,
+		    "\n",
+		    llvm::join(llvm::iterator_range(first + 1, next_directive) | stdv::transform(to_text), "\n")),
+		  .range = {begin_loc, end_loc},
+		  .next_directive = next_directive,
+		};
+	}
+
+	template<class T>
+	static auto parse_exported_by(std::string_view const description) -> std::vector<T>
+	{
+		return stdv::split(description, ',') //
+		     | stdv::transform([](auto const h) {
+			       auto exporter = std::string_view(h.begin(), h.end());
+			       return T{.data = std::string(absl::StripAsciiWhitespace(exporter))};
+		       })
+		     | stdr::to<std::vector>();
+	}
+
+	auto parse_module_info(std::string_view const text) -> std::vector<info::module_info>
+	{
+		return parse_exported_by<info::module_info>(text);
+	}
+
+	auto parse_header_info(std::string_view const text) -> std::vector<info::header_info>
+	{
+		return parse_exported_by<info::header_info>(text);
 	}
 } // namespace parser
