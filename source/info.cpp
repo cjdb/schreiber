@@ -135,7 +135,7 @@ namespace info {
 		if (prior_definition != parameters_.end()) {
 			auto param_decl = llvm::dyn_cast<clang::ParmVarDecl>(info.decl());
 			constexpr auto param = 1;
-			p.diagnose(directive.range.getBegin(), diag::err_repeated_directive)
+			p.diagnose(directive.location, diag::err_repeated_directive)
 			  << parser::command_info::param << param << param_decl
 			  << llvm::dyn_cast<clang::FunctionDecl>(decl());
 			p.diagnose(prior_definition->location(), clang::diag::note_previous_definition);
@@ -178,7 +178,7 @@ namespace info {
 	function_info::add_returns(parser::parser const& p, parser::directive directive, return_info info)
 	{
 		if (returns_.has_value()) {
-			p.diagnose(directive.range.getBegin(), diag::err_repeated_directive)
+			p.diagnose(directive.location, diag::err_repeated_directive)
 			  << parser::command_info::returns << /*directive=*/0
 			  << llvm::dyn_cast<clang::FunctionDecl>(decl());
 			p.diagnose(returns_->location(), clang::diag::note_previous_definition);

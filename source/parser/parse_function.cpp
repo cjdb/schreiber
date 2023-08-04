@@ -42,13 +42,9 @@ namespace parser {
 	{
 		switch (directive.token->kind) {
 		case command_info::headers:
-			return std::make_unique<info::decl_info::header_info>(
-			  std::move(description),
-			  directive.range.getBegin());
+			return std::make_unique<info::decl_info::header_info>(std::move(description), directive.location);
 		case command_info::modules:
-			return std::make_unique<info::decl_info::module_info>(
-			  std::move(description),
-			  directive.range.getBegin());
+			return std::make_unique<info::decl_info::module_info>(std::move(description), directive.location);
 		case command_info::param: {
 			auto name = to_string_view(
 			  absl::StripLeadingAsciiWhitespace(description) | stdv::take_while(std::not_fn(is_space)));
@@ -58,7 +54,7 @@ namespace parser {
 			});
 			if (parameter == decl->param_end()) {
 				auto const report_loc =
-				  directive.range.getBegin().getLocWithOffset(static_cast<int>(directive.text.size() + 2));
+				  directive.location.getLocWithOffset(static_cast<int>(directive.text.size() + 2));
 				p.diagnose(report_loc, diag::err_unknown_parameter) << /*is_template=*/false << name << decl;
 				p.diagnose(report_loc, diag::note_unknown_parameter) << command_info::param;
 				return nullptr;
@@ -66,31 +62,28 @@ namespace parser {
 
 			auto desc = description.substr(name.size());
 			absl::StripLeadingAsciiWhitespace(&desc);
-			return std::make_unique<info::parameter_info>(
-			  directive.range.getBegin(),
-			  *parameter,
-			  std::move(desc));
+			return std::make_unique<info::parameter_info>(directive.location, *parameter, std::move(desc));
 		}
 		case command_info::returns:
 			return std::make_unique<info::function_info::return_info>(
 			  std::move(description),
-			  directive.range.getBegin());
+			  directive.location);
 		case command_info::pre:
 			return std::make_unique<info::function_info::precondition_info>(
 			  std::move(description),
-			  directive.range.getBegin());
+			  directive.location);
 		case command_info::post:
 			return std::make_unique<info::function_info::postcondition_info>(
 			  std::move(description),
-			  directive.range.getBegin());
+			  directive.location);
 		case command_info::throws:
 			return std::make_unique<info::function_info::throws_info>(
 			  std::move(description),
-			  directive.range.getBegin());
+			  directive.location);
 		case command_info::exits_via:
 			return std::make_unique<info::function_info::exits_via_info>(
 			  std::move(description),
-			  directive.range.getBegin());
+			  directive.location);
 		default:
 			std::unreachable();
 		}

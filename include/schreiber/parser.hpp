@@ -69,7 +69,7 @@ namespace parser {
 	struct directive {
 		command_info const* token;
 		std::string_view text;
-		clang::SourceRange range;
+		clang::SourceLocation location;
 
 		[[nodiscard]]
 		static auto extract(std::string_view text, clang::SourceLocation begin_loc) -> directive;
@@ -82,7 +82,7 @@ namespace parser {
 
 	struct description {
 		std::string text;
-		clang::SourceRange range;
+		clang::SourceLocation location;
 		next_directive next;
 
 		[[nodiscard]]

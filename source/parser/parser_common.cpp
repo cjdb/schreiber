@@ -488,7 +488,7 @@ namespace parser {
 		return directive{
 		  .token = lex(result_text),
 		  .text = result_text,
-		  .range = {begin_loc, begin_loc.getLocWithOffset(static_cast<int>(result_text.size()))}
+		  .location = begin_loc,
     };
 	}
 
@@ -512,7 +512,7 @@ namespace parser {
 		    text,
 		    "\n",
 		    llvm::join(llvm::iterator_range(first + 1, next_directive) | stdv::transform(to_text), "\n")),
-		  .range = {     begin_loc, end_loc},
+		  .location = begin_loc,
 		  .next = {next_directive, end_loc},
 		};
 		absl::StripAsciiWhitespace(&result.text);
